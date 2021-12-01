@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 )
@@ -20,9 +19,6 @@ func main(){
 			largerCount++
 		}
 		prevLine = line
-	}
-	if scanner.Err() == bufio.ErrTooLong {
-		log.Fatal(scanner.Err())
 	}
 
 	fmt.Println("Larger Count: " + strconv.Itoa(largerCount))

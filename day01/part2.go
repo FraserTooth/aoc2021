@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 )
@@ -38,11 +37,8 @@ func main(){
 			}
 		}
 
-		// Setup for next round
+		// Shift values for next round
 		prev3Values = append(prev3Values[1:], value)
-	}
-	if scanner.Err() == bufio.ErrTooLong {
-		log.Fatal(scanner.Err())
 	}
 
 	fmt.Println("Larger Count: " + strconv.Itoa(largerCount))
