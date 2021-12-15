@@ -167,8 +167,6 @@ func partTwo(instructionChannel <-chan string, solutions chan<- string) {
                 polymer = newPolymer
         }
 
-        fmt.Println(charCount)
-
         biggest := 0
         smallest := 10000000000000000
         for _, count := range charCount{
