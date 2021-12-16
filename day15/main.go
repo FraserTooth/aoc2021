@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/RyanCarrier/dijkstra"
 	"github.com/thoas/go-funk"
 )
 
@@ -51,10 +52,12 @@ func main() {
         }
 }
 
+
 func partOne(instructionChannel <-chan string, solutions chan<- string) {
         var heightMap [][]int
-        minimumRiskLevel := 1000000000
-	for line := range instructionChannel {
+        graph:=dijkstra.NewGraph()
+
+        for line := range instructionChannel {
                 rowStrings := strings.Split(line, "")
                 rowInts := funk.Map(rowStrings, func(x string) int {
                         num, _ := strconv.Atoi(x)
@@ -63,40 +66,45 @@ func partOne(instructionChannel <-chan string, solutions chan<- string) {
 		heightMap = append(heightMap, rowInts)
 	}
 
-        directions := [][2]int{{0,1}, {1,0}}
+        directions := [][2]int{{0,1}, {1,0}, {0, -1}, {-1, 0}}
 
-        var navigate func(location [2]int, visited []string, totalRiskSoFar int)
-        navigate = func (location [2]int, visited []string, totalRiskSoFar int){
-                visited =append(visited, locationToString(location))
-                risk := heightMap[location[1]][location[0]]
-                totalRiskSoFar += risk
-                // End
-                if location[0] == len(heightMap[0])-1 && location[1] == len(heightMap)-1{
-                        if totalRiskSoFar < minimumRiskLevel {
-                                minimumRiskLevel = totalRiskSoFar
-                        }
-                } else {
+        // Make Vertices
+        for y, row := range heightMap{
+                for x := range row {
+                        locationNum := x+(y*len(heightMap[0]))
+                        graph.AddVertex(locationNum)
+                }
+        }
+
+        // Make Arcs
+        for y, row := range heightMap{
+                for x := range row {
+                        locationNum := x+(y*len(heightMap[0]))
                         for _, diff := range directions{
-                                target := [2]int{location[0]+diff[0], location[1]+diff[1]}
+                                x2 := x+diff[0]
+                                y2 := y+diff[1]
+                                targetNum := x2+(y2*len(heightMap[0]))
                                 // If in range
-                                if target[0] < len(heightMap[0]) &&
-                                target[0] >= 0 &&
-                                target[1] < len(heightMap) &&
-                                target[1] >= 0 {
-                                        targetString := locationToString(target)
-                                        if !funk.Contains(visited, targetString){
-                                                navigate(target, visited, totalRiskSoFar)
-                                        }
+                                if x2 < len(heightMap[0]) &&
+                                x2 >= 0 &&
+                                y2 < len(heightMap) &&
+                                y2 >= 0 {
+                                        graph.AddArc(locationNum, targetNum, int64(heightMap[y2][x2]))
                                 }
                         }
                 }
         }
 
-        navigate([2]int{0,0}, make([]string,0), 0)
 
+        locationOfEnd := len(heightMap[0])-1+((len(heightMap)-1)*len(heightMap[0]))
+        best, err := graph.Shortest(0,locationOfEnd)
+        if err!=nil{
+                log.Fatal(err)
+        }
+        
 	solutions <- fmt.Sprintf(
                 "Part 1:\n Minimum Risk Level: %d\n",
-                minimumRiskLevel - heightMap[0][0],
+                best.Distance,
 	)
 	close(solutions)
 }
@@ -105,19 +113,80 @@ func partOne(instructionChannel <-chan string, solutions chan<- string) {
 
 func partTwo(instructionChannel <-chan string, solutions chan<- string) {
         var heightMap [][]int
-        minimumRiskLevel := 1000000000
-	for line := range instructionChannel {
-                rowStrings := strings.Split(line, "")
-                rowInts := funk.Map(rowStrings, func(x string) int {
-                        num, _ := strconv.Atoi(x)
-                        return num
-                }).([]int)
-		heightMap = append(heightMap, rowInts)
-	}
+        graph:=dijkstra.NewGraph()
 
+        // Do horizontal Copies
+        for line := range instructionChannel {
+                rowStrings := strings.Split(line, "")
+                var rowInts []int
+                for i := 0; i < 5; i++ {
+                        scrollingNums := funk.Map(rowStrings, func(x string) int {
+                                num, _ := strconv.Atoi(x)
+                                shiftedNum := num + i
+                                if shiftedNum > 9{
+                                        return shiftedNum - 9
+                                }
+                                return shiftedNum
+                        }).([]int)
+                        rowInts = append(rowInts, scrollingNums...)
+                }
+                heightMap = append(heightMap, rowInts)
+	}
+        // Do vertical copies
+        var heightMapBlocks [][]int
+        for i := 1; i < 5; i++ {
+                for _, row := range heightMap{
+                        updatedRow := funk.Map(row, func(num int) int {
+                                shiftedNum := num + i
+                                if shiftedNum > 9{
+                                        return shiftedNum - 9
+                                }
+                                return shiftedNum
+                        }).([]int)
+                        heightMapBlocks = append(heightMapBlocks, updatedRow)
+                }
+        }
+        heightMap = append(heightMap, heightMapBlocks...)        
+
+        directions := [][2]int{{0,1}, {1,0}, {0, -1}, {-1, 0}}
+
+        // Make Vertices
+        for y, row := range heightMap{
+                for x := range row {
+                        locationNum := x+(y*len(heightMap[0]))
+                        graph.AddVertex(locationNum)
+                }
+        }
+
+        // Make Arcs
+        for y, row := range heightMap{
+                for x := range row {
+                        locationNum := x+(y*len(heightMap[0]))
+                        for _, diff := range directions{
+                                x2 := x+diff[0]
+                                y2 := y+diff[1]
+                                targetNum := x2+(y2*len(heightMap[0]))
+                                // If in range
+                                if x2 < len(heightMap[0]) &&
+                                x2 >= 0 &&
+                                y2 < len(heightMap) &&
+                                y2 >= 0 {
+                                        graph.AddArc(locationNum, targetNum, int64(heightMap[y2][x2]))
+                                }
+                        }
+                }
+        }
+
+
+        locationOfEnd := len(heightMap[0])-1+((len(heightMap)-1)*len(heightMap[0]))
+        best, err := graph.Shortest(0,locationOfEnd)
+        if err!=nil{
+                log.Fatal(err)
+        }
+        
 	solutions <- fmt.Sprintf(
                 "Part 2:\n Minimum Risk Level: %d\n",
-                minimumRiskLevel,
+                best.Distance,
 	)
 	close(solutions)
 }
